@@ -42,6 +42,7 @@ static float rot_mat[3][3] = {
 
 static filter_t filter[FILTER_MAX_SLOTS];
 static filter_state_t filter_state[FILTER_MAX_SLOTS][3];
+static filter_lulu_state_t lulu_filter_state_gyro[3];
 
 static sdft_t gyro_sdft[SDFT_AXES];
 static filter_biquad_notch_t notch_filter[SDFT_AXES][SDFT_PEAKS];
@@ -55,6 +56,11 @@ bool sixaxis_detect() {
 void sixaxis_init() {
   for (uint8_t i = 0; i < FILTER_MAX_SLOTS; i++) {
     filter_init(profile.filter.gyro[i].type, &filter[i], filter_state[i], 3, profile.filter.gyro[i].cutoff_freq);
+  }
+  if (profile.filter.gyro[0].type == FILTER_LP_LULU) {
+    for (uint8_t i = 0; i < 3; i++) {
+      filter_lp_lulu_init(&filter[0], &lulu_filter_state_gyro[i], profile.filter.gyro[0].cutoff_freq);
+    }
   }
 
   for (uint8_t i = 0; i < SDFT_AXES; i++) {
@@ -178,7 +184,11 @@ void sixaxis_read() {
   }
 
   for (uint32_t i = 0; i < 3; i++) {
-    state.gyro.axis[i] = filter_step(profile.filter.gyro[0].type, &filter[0], &filter_state[0][i], state.gyro.axis[i]);
+    if(profile.filter.gyro[0].type != FILTER_LP_LULU) {
+      state.gyro.axis[i] = filter_step(profile.filter.gyro[0].type, &filter[0], &filter_state[0][i], state.gyro.axis[i]);
+    } else {
+      state.gyro.axis[i] = filter_lp_lulu_step(&filter[0], &lulu_filter_state_gyro[i], state.gyro.axis[i]);
+    }
     state.gyro.axis[i] = filter_step(profile.filter.gyro[1].type, &filter[1], &filter_state[1][i], state.gyro.axis[i]);
 
     if (profile.filter.gyro_dynamic_notch_enable) {

@@ -820,11 +820,12 @@ void osd_display() {
         " PT1",
         " PT2",
         " PT3",
+        " LULU",
     };
 
     osd_menu_select(4, 4, "PASS 1 TYPE");
     if (osd_menu_select_enum(18, 4, profile.filter.gyro[0].type, filter_type_labels)) {
-      profile.filter.gyro[0].type = osd_menu_adjust_int(profile.filter.gyro[0].type, 1, 0, FILTER_LP_PT3);
+      profile.filter.gyro[0].type = osd_menu_adjust_int(profile.filter.gyro[0].type, 1, 0, FILTER_LP_LULU);
       osd_state.reboot_fc_requested = 1;
     }
 
@@ -864,11 +865,12 @@ void osd_display() {
         " PT1",
         " PT2",
         " PT3",
+        " LULU",
     };
 
     osd_menu_select(4, 3, "PASS 1 TYPE");
     if (osd_menu_select_enum(18, 3, profile.filter.dterm[0].type, filter_type_labels)) {
-      profile.filter.dterm[0].type = osd_menu_adjust_int(profile.filter.dterm[0].type, 1, 0, FILTER_LP_PT2);
+      profile.filter.dterm[0].type = osd_menu_adjust_int(profile.filter.dterm[0].type, 1, 0, FILTER_LP_LULU);
       osd_state.reboot_fc_requested = 1;
     }
 

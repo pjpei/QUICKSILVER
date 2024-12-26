@@ -90,6 +90,103 @@ float filter_lp_pt3_step(filter_lp_pt3 *filter, filter_state_t *state, float in)
   return state->delay_element[0];
 }
 
+void filter_lp_lulu_init(filter_t *filter, filter_lulu_state_t *lulu_state, float hz) {
+  //The window value is half the wavelength of the wave that it filters.  So if the wavelength of the cutoff frequency is 2 samples, the N value should be 1.  If the wavelength is 4, N should be 2.  Etc.
+  float cutoff_wave_length = 1.0f / hz / 4.0f;
+  float loop_wave_length = state.looptime_autodetect * 1e-6f;
+  int window_length = cutoff_wave_length / loop_wave_length;
+  
+  filter->lp_lulu.window_size = constrain(window_length, 1, 12);
+  filter->lp_lulu.window_size = filter->lp_lulu.window_size * 2 + 1;
+  (*lulu_state).window_buf_index = 0;
+
+  memset((*lulu_state).interim, 0, sizeof(float) * (filter->lp_lulu.window_size));
+  memset((*lulu_state).interim_b, 0, sizeof(float) * (filter->lp_lulu.window_size));
+}
+
+float fix_road(float *series, float *series_b, int index, int filter_n, int window_size) {
+  float cur_val = 0;
+  float cur_val_b = 0;
+  for (int N = 1; N <= filter_n; N++) {
+    int index_neg = (index + window_size - 2 * N) % window_size;
+    int cur_index = (index_neg + 1) % window_size;
+    float prev_val = series[index_neg];
+    float prev_val_b = series_b[index_neg];
+    int index_pos = (cur_index + N) % window_size;
+    for (int i = window_size - 2 * N; i < window_size - N; i++) {
+      if (index_pos >= window_size) {
+        index_pos = 0;
+      }
+      if (cur_index >= window_size) {
+        cur_index = 0;
+      }
+
+      cur_val = series[cur_index];
+      cur_val_b = series_b[cur_index];
+      float next_val = series[index_pos];
+      float next_val_b = series_b[index_pos];
+
+      if (prev_val < cur_val && cur_val > next_val) {
+        float maxValue = max(prev_val, next_val);
+        series[cur_index] = maxValue;
+      }
+
+      if (prev_val_b < cur_val_b && cur_val_b > next_val_b) {
+        float maxValue = max(prev_val_b, next_val_b);
+        series_b[cur_index] = maxValue;
+      }
+      prev_val = cur_val;
+      prev_val_b = cur_val_b;
+      cur_index++;
+      index_pos++;
+    }
+
+    cur_index = (index_neg + 1) % window_size;
+    prev_val = series[index_neg];
+    prev_val_b = series_b[index_neg];
+    index_pos = (cur_index + N) % window_size;
+    for (int i = window_size - 2 * N; i < window_size - N; i++) {
+      if (index_pos >= window_size) {
+          index_pos = 0;
+      }
+      if (cur_index >= window_size) {
+          cur_index = 0;
+      }
+
+      cur_val = series[cur_index];
+      cur_val_b = series_b[cur_index];
+      float next_val = series[index_pos];
+      float next_val_b = series_b[index_pos];
+
+      if (prev_val > cur_val && cur_val < next_val) {
+          float minValue = min(prev_val, next_val);
+          series[cur_index] = minValue;
+      }
+
+      if (prev_val_b > cur_val_b && cur_val_b < next_val_b) {
+          float minValue = min(prev_val_b, next_val_b);
+          series_b[cur_index] = minValue;
+      }
+      prev_val = cur_val;
+      prev_val_b = cur_val_b; 
+      cur_index++;
+      index_pos++;
+    }
+  }
+  int final_index = (index + window_size - filter_n) % window_size;
+  cur_val = series[final_index];
+  cur_val_b = series_b[final_index];
+  return (cur_val - cur_val_b) / 2;
+}
+
+float filter_lp_lulu_step(filter_t *filter, filter_lulu_state_t *lulu_state, float in) {
+  int window_index = lulu_state->window_buf_index;
+  lulu_state->window_buf_index = (window_index + 1) % filter->lp_lulu.window_size;
+  lulu_state->interim[window_index] = in;
+  lulu_state->interim_b[window_index] = -in;
+  return fix_road(lulu_state->interim, lulu_state->interim_b, window_index, filter->lp_lulu.num_samples, filter->lp_lulu.window_size);
+}
+
 void filter_biquad_notch_init(filter_biquad_notch_t *filter, filter_biquad_state_t *state, uint8_t count, float hz) {
   memset(filter, 0, sizeof(filter_biquad_notch_t));
   filter_biquad_notch_coeff(filter, hz);

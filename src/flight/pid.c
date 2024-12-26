@@ -48,12 +48,21 @@ static filter_state_t dynamic_filter_state[3];
 static filter_lp_pt1 rx_filter;
 static filter_state_t rx_filter_state[3];
 
+static filter_lulu_state_t lulu_filter_state_dterm[3];
+
 void pid_init() {
   filter_lp_pt1_init(&rx_filter, rx_filter_state, 3, state.rx_filter_hz);
 
   for (uint8_t i = 0; i < FILTER_MAX_SLOTS; i++) {
     filter_init(profile.filter.dterm[i].type, &filter[i], filter_state[i], 3, profile.filter.dterm[i].cutoff_freq);
   }
+
+  if (profile.filter.dterm[0].type == FILTER_LP_LULU) {
+    for (uint8_t i = 0; i < 3; i++) {
+      filter_lp_lulu_init(&filter[0], &lulu_filter_state_dterm[i], profile.filter.dterm[0].cutoff_freq);
+    }
+  }
+
 
   if (profile.filter.dterm_dynamic_enable) {
     // zero out filter, freq will be updated later on
@@ -90,7 +99,11 @@ static inline float pid_compute_iterm_windup(uint8_t x, float pid_output) {
 }
 
 static inline float pid_filter_dterm(uint8_t x, float dterm) {
-  dterm = filter_step(profile.filter.dterm[0].type, &filter[0], &filter_state[0][x], dterm);
+  if(profile.filter.dterm[0].type != FILTER_LP_LULU) {
+    dterm = filter_step(profile.filter.dterm[0].type, &filter[0], &filter_state[0][x], dterm);
+  } else {
+    dterm = filter_lp_lulu_step(&filter[0], &lulu_filter_state_dterm[x], dterm);
+  }
   dterm = filter_step(profile.filter.dterm[1].type, &filter[1], &filter_state[1][x], dterm);
 
   if (profile.filter.dterm_dynamic_enable) {
