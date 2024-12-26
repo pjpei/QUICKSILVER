@@ -100,7 +100,7 @@ __attribute__((__used__)) int main() {
   motor_set_all(MOTOR_OFF);
 
   // wait for devices to wake up
-  time_delay_ms(300);
+  time_delay_ms(100);
   osd_init();
   rx_spektrum_bind();
 
@@ -113,20 +113,17 @@ __attribute__((__used__)) int main() {
   sixaxis_init();
 
   // give the gyro some time to settle
-  time_delay_ms(100);
+  time_delay_ms(50);
 
   // display bootlogo while calibrating
   sixaxis_gyro_cal();
-
-  // wait for adc and vtx to wake up
-  time_delay_ms(100);
 
   adc_init();
   vbat_init();
 
   rx_init();
   vtx_init();
-  rgb_init();
+  rgb_led_init();
 
   blackbox_init();
   imu_init();
